@@ -508,8 +508,8 @@ h1 {
   font-weight: 900;
 }
 
-.speech-unavailable .play-button {
-  background: #9aab9a;
+.speech-remote-fallback .play-button {
+  background: linear-gradient(145deg, #38b96a, #1d8d4e);
 }
 
 @media (min-width: 680px) {

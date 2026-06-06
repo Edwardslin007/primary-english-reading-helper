@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { readingCards, wordDefinitions } from '../src/reading-data.mjs';
 import {
+  buildRemoteTtsUrl,
   findDefinition,
   normalizeForLookup,
   normalizeVolume,
@@ -54,4 +55,13 @@ test('normalizeVolume converts a 0-10 slider value to Web Speech volume', () => 
   assert.equal(normalizeVolume(10), 1);
   assert.equal(normalizeVolume(-4), 0);
   assert.equal(normalizeVolume(24), 1);
+});
+
+test('buildRemoteTtsUrl creates an HTTPS American English audio fallback URL', () => {
+  const url = buildRemoteTtsUrl('Hello everyone!');
+
+  assert.equal(url.protocol, 'https:');
+  assert.equal(url.hostname, 'dict.youdao.com');
+  assert.equal(url.searchParams.get('type'), '2');
+  assert.equal(url.searchParams.get('audio'), 'Hello everyone!');
 });

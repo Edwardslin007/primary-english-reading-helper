@@ -24,6 +24,13 @@ export function normalizeVolume(value) {
   return Math.min(1, Math.max(0, numeric / 10));
 }
 
+export function buildRemoteTtsUrl(text, voiceType = 2) {
+  const url = new URL('https://dict.youdao.com/dictvoice');
+  url.searchParams.set('type', String(voiceType));
+  url.searchParams.set('audio', text);
+  return url;
+}
+
 export function estimateSpeechDuration(words, rate = 0.86) {
   const baseMs = 520;
   const perWordMs = 450 / Math.max(rate, 0.4);

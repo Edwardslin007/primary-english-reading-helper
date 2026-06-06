@@ -1,5 +1,6 @@
 import { readingCards, wordDefinitions } from './reading-data.mjs';
 import {
+  buildRemoteTtsUrl,
   estimateSpeechDuration,
   findDefinition,
   normalizeVolume,
@@ -7,11 +8,13 @@ import {
 } from './reading-utils.mjs';
 
 const state = {
+  audioPlayer: null,
   currentCardId: '',
   fallbackTimer: null,
   hideBubbleTimer: null,
   lookupEnabled: false,
   phrasesEnabled: false,
+  playbackToken: 0,
   translationsEnabled: false,
   volume: 8,
   voices: [],
@@ -113,6 +116,9 @@ function bindToolbar() {
   elements.volumeSlider.addEventListener('input', () => {
     state.volume = Number(elements.volumeSlider.value);
     elements.volumeValue.textContent = String(state.volume);
+    if (state.audioPlayer) {
+      state.audioPlayer.volume = normalizeVolume(state.volume);
+    }
   });
 
   elements.translationToggle.addEventListener('change', () => {
@@ -139,7 +145,7 @@ function syncModes() {
 
 function hydrateVoices() {
   if (!('speechSynthesis' in window)) {
-    document.body.classList.add('speech-unavailable');
+    document.body.classList.add('speech-remote-fallback');
     return;
   }
 
@@ -156,15 +162,7 @@ function hydrateVoices() {
 }
 
 function speakText(text, cardId, options = {}) {
-  if (!('speechSynthesis' in window)) {
-    markUnsupported(cardId);
-    if (options.isWord) {
-      scheduleBubbleHide();
-    }
-    return;
-  }
-
-  window.speechSynthesis.cancel();
+  stopCurrentPlayback();
   clearPlaybackTimers();
   resetCards();
 
@@ -176,6 +174,15 @@ function speakText(text, cardId, options = {}) {
   card?.classList.add('is-playing');
   card?.querySelector('.play-button')?.classList.add('is-active');
 
+  if (!('speechSynthesis' in window)) {
+    speakWithRemoteAudio(text, cardId, words, isFullSentence, options);
+    return;
+  }
+
+  speakWithWebSpeech(text, cardId, words, isFullSentence, options);
+}
+
+function speakWithWebSpeech(text, cardId, words, isFullSentence, options = {}) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
   utterance.rate = options.isWord ? 0.78 : 0.84;
@@ -221,6 +228,93 @@ function speakText(text, cardId, options = {}) {
   };
 
   window.speechSynthesis.speak(utterance);
+}
+
+function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {}) {
+  const audio = ensureAudioPlayer();
+  const token = state.playbackToken;
+  let highlightStarted = false;
+
+  const startHighlight = () => {
+    if (highlightStarted || !isFullSentence || token !== state.playbackToken) {
+      return;
+    }
+
+    highlightStarted = true;
+    const durationMs = Number.isFinite(audio.duration)
+      ? audio.duration * 1000
+      : estimateSpeechDuration(words, 0.84);
+    runTimedHighlight(cardId, words.length, durationMs);
+  };
+
+  audio.onplaying = startHighlight;
+  audio.onloadedmetadata = startHighlight;
+  audio.onended = () => {
+    if (token !== state.playbackToken) {
+      return;
+    }
+
+    if (isFullSentence) {
+      paintWords(cardId, words.length - 1);
+    }
+    finishPlayback(cardId);
+    if (options.isWord) {
+      scheduleBubbleHide();
+    }
+  };
+  audio.onerror = () => {
+    if (token !== state.playbackToken) {
+      return;
+    }
+
+    finishPlayback(cardId);
+    markUnsupported(cardId);
+    if (options.isWord) {
+      scheduleBubbleHide();
+    }
+  };
+
+  audio.volume = normalizeVolume(state.volume);
+  audio.src = buildRemoteTtsUrl(text).toString();
+  audio.load();
+
+  const playResult = audio.play();
+  if (playResult && typeof playResult.catch === 'function') {
+    playResult.catch(() => {
+      if (token !== state.playbackToken) {
+        return;
+      }
+
+      finishPlayback(cardId);
+      markUnsupported(cardId);
+      if (options.isWord) {
+        scheduleBubbleHide();
+      }
+    });
+  }
+}
+
+function ensureAudioPlayer() {
+  if (!state.audioPlayer) {
+    state.audioPlayer = new Audio();
+    state.audioPlayer.preload = 'auto';
+  }
+
+  return state.audioPlayer;
+}
+
+function stopCurrentPlayback() {
+  state.playbackToken += 1;
+
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  if (state.audioPlayer) {
+    state.audioPlayer.pause();
+    state.audioPlayer.removeAttribute('src');
+    state.audioPlayer.load();
+  }
 }
 
 function chooseVoice() {
