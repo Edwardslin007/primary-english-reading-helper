@@ -508,7 +508,7 @@ h1 {
   font-weight: 900;
 }
 
-.speech-remote-fallback .play-button {
+.local-audio-mode .play-button {
   background: linear-gradient(145deg, #38b96a, #1d8d4e);
 }
 

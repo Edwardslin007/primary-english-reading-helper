@@ -15,6 +15,25 @@ export function findDefinition(word, definitions) {
   return definitions[normalizeForLookup(word)] ?? '';
 }
 
+export function toAudioSlug(value) {
+  return normalizeForLookup(value)
+    .replace(/['’‘]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function getSentenceAudioPath(cardId) {
+  return `audio/sentences/${cardId}.mp3`;
+}
+
+export function getPhraseAudioPath(cardId, phraseIndex) {
+  return `audio/phrases/${cardId}-${phraseIndex + 1}.mp3`;
+}
+
+export function getWordAudioPath(word) {
+  return `audio/words/${toAudioSlug(word)}.mp3`;
+}
+
 export function normalizeVolume(value) {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) {

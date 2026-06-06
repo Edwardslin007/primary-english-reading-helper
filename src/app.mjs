@@ -1,12 +1,15 @@
 import { readingCards, wordDefinitions } from './reading-data.mjs';
 import {
-  buildRemoteTtsPlaybackTexts,
-  buildRemoteTtsUrl,
   estimateSpeechDuration,
   findDefinition,
+  getPhraseAudioPath,
+  getSentenceAudioPath,
+  getWordAudioPath,
   normalizeVolume,
   splitIntoSpeakableWords,
 } from './reading-utils.mjs';
+
+const ASSET_VERSION = '1.0.4';
 
 const state = {
   audioPlayer: null,
@@ -48,7 +51,11 @@ function renderCards() {
     playButton.type = 'button';
     playButton.setAttribute('aria-label', `播放第 ${index + 1} 句英文`);
     playButton.innerHTML = '<span class="play-icon" aria-hidden="true"></span>';
-    playButton.addEventListener('click', () => speakText(card.english, card.id));
+    playButton.addEventListener('click', () =>
+      speakText(card.english, card.id, {
+        audioPath: getSentenceAudioPath(card.id),
+      }),
+    );
 
     const content = document.createElement('div');
     content.className = 'card-content';
@@ -70,7 +77,12 @@ function renderCards() {
       phraseButton.className = `phrase-chip phrase-${(phraseIndex % 4) + 1}`;
       phraseButton.type = 'button';
       phraseButton.textContent = phrase;
-      phraseButton.addEventListener('click', () => speakText(phrase, card.id, { isPhrase: true }));
+      phraseButton.addEventListener('click', () =>
+        speakText(phrase, card.id, {
+          audioPath: getPhraseAudioPath(card.id, phraseIndex),
+          isPhrase: true,
+        }),
+      );
       phraseRow.append(phraseButton);
     });
 
@@ -146,7 +158,7 @@ function syncModes() {
 
 function hydrateVoices() {
   if (!('speechSynthesis' in window)) {
-    document.body.classList.add('speech-remote-fallback');
+    document.body.classList.add('local-audio-mode');
     return;
   }
 
@@ -175,8 +187,8 @@ function speakText(text, cardId, options = {}) {
   card?.classList.add('is-playing');
   card?.querySelector('.play-button')?.classList.add('is-active');
 
-  if (!('speechSynthesis' in window)) {
-    speakWithRemoteAudio(text, cardId, words, isFullSentence, options);
+  if (options.audioPath) {
+    speakWithLocalAudio(text, cardId, words, isFullSentence, options);
     return;
   }
 
@@ -231,16 +243,12 @@ function speakWithWebSpeech(text, cardId, words, isFullSentence, options = {}) {
   window.speechSynthesis.speak(utterance);
 }
 
-function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {}) {
+function speakWithLocalAudio(text, cardId, words, isFullSentence, options = {}) {
   const audio = ensureAudioPlayer();
   const token = state.playbackToken;
-  const fallbackTexts = buildRemoteTtsPlaybackTexts(text);
-  const wordOffset = fallbackTexts[0] === text ? 1 : 0;
-  let sourceIndex = 0;
   let highlightStarted = false;
-  let usingWordFallback = wordOffset === 0;
 
-  const finishRemotePlayback = () => {
+  const finishLocalPlayback = () => {
     if (isFullSentence) {
       paintWords(cardId, words.length - 1);
     }
@@ -250,80 +258,53 @@ function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {})
     }
   };
 
-  const playSource = (nextIndex) => {
+  const startHighlight = () => {
+    if (highlightStarted || !isFullSentence || token !== state.playbackToken) {
+      return;
+    }
+
+    highlightStarted = true;
+    const measuredMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+    const minimumMs = Math.max(900, words.length * 320);
+    const durationMs =
+      measuredMs >= minimumMs ? measuredMs : estimateSpeechDuration(words, options.isWord ? 0.78 : 0.84);
+    runTimedHighlight(cardId, words.length, durationMs);
+  };
+
+  audio.onplaying = startHighlight;
+  audio.onloadedmetadata = startHighlight;
+  audio.onended = () => {
     if (token !== state.playbackToken) {
       return;
     }
 
-    sourceIndex = nextIndex;
-    const isFallbackWord = usingWordFallback || sourceIndex >= wordOffset;
-    const currentText = fallbackTexts[sourceIndex];
+    finishLocalPlayback();
+  };
+  audio.onerror = () => {
+    if (token !== state.playbackToken) {
+      return;
+    }
 
-    const startHighlight = () => {
-      if (!isFullSentence || token !== state.playbackToken) {
-        return;
-      }
+    if ('speechSynthesis' in window) {
+      speakWithWebSpeech(text, cardId, words, isFullSentence, options);
+      return;
+    }
 
-      if (isFallbackWord) {
-        paintWords(cardId, sourceIndex - wordOffset);
-        return;
-      }
-
-      if (!highlightStarted) {
-        highlightStarted = true;
-        const durationMs = Number.isFinite(audio.duration)
-          ? audio.duration * 1000
-          : estimateSpeechDuration(words, 0.84);
-        runTimedHighlight(cardId, words.length, durationMs);
-      }
-    };
-
-    const tryNextSource = () => {
-      if (token !== state.playbackToken) {
-        return;
-      }
-
-      if (sourceIndex + 1 < fallbackTexts.length) {
-        usingWordFallback = true;
-        clearPlaybackTimers();
-        playSource(sourceIndex + 1);
-        return;
-      }
-
-      finishPlayback(cardId);
-      markUnsupported(cardId);
-      if (options.isWord) {
-        scheduleBubbleHide();
-      }
-    };
-
-    audio.onplaying = startHighlight;
-    audio.onloadedmetadata = startHighlight;
-    audio.onended = () => {
-      if (token !== state.playbackToken) {
-        return;
-      }
-
-      if (usingWordFallback && sourceIndex + 1 < fallbackTexts.length) {
-        playSource(sourceIndex + 1);
-        return;
-      }
-
-      finishRemotePlayback();
-    };
-    audio.onerror = tryNextSource;
-
-    audio.volume = normalizeVolume(state.volume);
-    audio.src = buildRemoteTtsUrl(currentText).toString();
-    audio.load();
-
-    const playResult = audio.play();
-    if (playResult && typeof playResult.catch === 'function') {
-      playResult.catch(tryNextSource);
+    finishPlayback(cardId);
+    markUnsupported(cardId);
+    if (options.isWord) {
+      scheduleBubbleHide();
     }
   };
 
-  playSource(0);
+  audio.volume = normalizeVolume(state.volume);
+  audio.src = withAssetVersion(options.audioPath);
+  audio.load();
+
+  const playResult = audio.play();
+  if (playResult && typeof playResult.catch === 'function') {
+    playResult.catch(audio.onerror);
+  }
 }
 
 function ensureAudioPlayer() {
@@ -446,7 +427,11 @@ function handleWordLookup(word, cardId) {
 
   const meaning = findDefinition(word, wordDefinitions) || '这个单词稍后补充释义';
   showLookupBubble(word, meaning);
-  speakText(word, cardId, { isPhrase: true, isWord: true });
+  speakText(word, cardId, {
+    audioPath: getWordAudioPath(word),
+    isPhrase: true,
+    isWord: true,
+  });
 }
 
 function showLookupBubble(word, meaning) {
@@ -476,4 +461,8 @@ function markUnsupported(cardId) {
   const card = document.querySelector(`[data-card-id="${cardId}"]`);
   card?.classList.add('speech-warning');
   window.setTimeout(() => card?.classList.remove('speech-warning'), 1300);
+}
+
+function withAssetVersion(audioPath) {
+  return `${audioPath}?v=${ASSET_VERSION}`;
 }
