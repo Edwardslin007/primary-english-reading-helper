@@ -234,9 +234,7 @@ function speakWithWebSpeech(text, cardId, words, isFullSentence, options = {}) {
 function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {}) {
   const audio = ensureAudioPlayer();
   const token = state.playbackToken;
-  const fallbackTexts = buildRemoteTtsPlaybackTexts(text, {
-    forceWordSequence: isFullSentence && words.length > 5,
-  });
+  const fallbackTexts = buildRemoteTtsPlaybackTexts(text);
   const wordOffset = fallbackTexts[0] === text ? 1 : 0;
   let sourceIndex = 0;
   let highlightStarted = false;

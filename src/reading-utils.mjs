@@ -24,10 +24,12 @@ export function normalizeVolume(value) {
   return Math.min(1, Math.max(0, numeric / 10));
 }
 
-export function buildRemoteTtsUrl(text, voiceType = 2) {
-  const url = new URL('https://dict.youdao.com/dictvoice');
-  url.searchParams.set('type', String(voiceType));
-  url.searchParams.set('audio', text);
+export function buildRemoteTtsUrl(text) {
+  const url = new URL('https://fanyi.baidu.com/gettts');
+  url.searchParams.set('lan', 'en');
+  url.searchParams.set('text', text);
+  url.searchParams.set('spd', '3');
+  url.searchParams.set('source', 'web');
   return url;
 }
 
@@ -36,12 +38,7 @@ export function buildRemoteTtsFallbackTexts(text) {
   return [text, ...words.filter((word) => word !== text)];
 }
 
-export function buildRemoteTtsPlaybackTexts(text, options = {}) {
-  const words = splitIntoSpeakableWords(text);
-  if (options.forceWordSequence && words.length > 0) {
-    return words;
-  }
-
+export function buildRemoteTtsPlaybackTexts(text) {
   return buildRemoteTtsFallbackTexts(text);
 }
 

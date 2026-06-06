@@ -59,13 +59,15 @@ test('normalizeVolume converts a 0-10 slider value to Web Speech volume', () => 
   assert.equal(normalizeVolume(24), 1);
 });
 
-test('buildRemoteTtsUrl creates an HTTPS American English audio fallback URL', () => {
+test('buildRemoteTtsUrl creates an HTTPS English sentence TTS fallback URL', () => {
   const url = buildRemoteTtsUrl('Hello everyone!');
 
   assert.equal(url.protocol, 'https:');
-  assert.equal(url.hostname, 'dict.youdao.com');
-  assert.equal(url.searchParams.get('type'), '2');
-  assert.equal(url.searchParams.get('audio'), 'Hello everyone!');
+  assert.equal(url.hostname, 'fanyi.baidu.com');
+  assert.equal(url.searchParams.get('lan'), 'en');
+  assert.equal(url.searchParams.get('text'), 'Hello everyone!');
+  assert.equal(url.searchParams.get('spd'), '3');
+  assert.equal(url.searchParams.get('source'), 'web');
 });
 
 test('buildRemoteTtsFallbackTexts keeps full text first and then falls back to words', () => {
@@ -86,11 +88,20 @@ test('buildRemoteTtsFallbackTexts keeps full text first and then falls back to w
   );
 });
 
-test('buildRemoteTtsPlaybackTexts can start directly with words for long mobile fallback', () => {
+test('buildRemoteTtsPlaybackTexts keeps long sentences natural before word fallback', () => {
   assert.deepEqual(
-    buildRemoteTtsPlaybackTexts('I can sing English songs and draw nice pictures.', {
-      forceWordSequence: true,
-    }),
-    ['I', 'can', 'sing', 'English', 'songs', 'and', 'draw', 'nice', 'pictures'],
+    buildRemoteTtsPlaybackTexts('I can sing English songs and draw nice pictures.'),
+    [
+      'I can sing English songs and draw nice pictures.',
+      'I',
+      'can',
+      'sing',
+      'English',
+      'songs',
+      'and',
+      'draw',
+      'nice',
+      'pictures',
+    ],
   );
 });
