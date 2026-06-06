@@ -1,5 +1,6 @@
 import { readingCards, wordDefinitions } from './reading-data.mjs';
 import {
+  buildRemoteTtsPlaybackTexts,
   buildRemoteTtsUrl,
   estimateSpeechDuration,
   findDefinition,
@@ -233,27 +234,15 @@ function speakWithWebSpeech(text, cardId, words, isFullSentence, options = {}) {
 function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {}) {
   const audio = ensureAudioPlayer();
   const token = state.playbackToken;
+  const fallbackTexts = buildRemoteTtsPlaybackTexts(text, {
+    forceWordSequence: isFullSentence && words.length > 5,
+  });
+  const wordOffset = fallbackTexts[0] === text ? 1 : 0;
+  let sourceIndex = 0;
   let highlightStarted = false;
+  let usingWordFallback = wordOffset === 0;
 
-  const startHighlight = () => {
-    if (highlightStarted || !isFullSentence || token !== state.playbackToken) {
-      return;
-    }
-
-    highlightStarted = true;
-    const durationMs = Number.isFinite(audio.duration)
-      ? audio.duration * 1000
-      : estimateSpeechDuration(words, 0.84);
-    runTimedHighlight(cardId, words.length, durationMs);
-  };
-
-  audio.onplaying = startHighlight;
-  audio.onloadedmetadata = startHighlight;
-  audio.onended = () => {
-    if (token !== state.playbackToken) {
-      return;
-    }
-
+  const finishRemotePlayback = () => {
     if (isFullSentence) {
       paintWords(cardId, words.length - 1);
     }
@@ -262,26 +251,44 @@ function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {})
       scheduleBubbleHide();
     }
   };
-  audio.onerror = () => {
+
+  const playSource = (nextIndex) => {
     if (token !== state.playbackToken) {
       return;
     }
 
-    finishPlayback(cardId);
-    markUnsupported(cardId);
-    if (options.isWord) {
-      scheduleBubbleHide();
-    }
-  };
+    sourceIndex = nextIndex;
+    const isFallbackWord = usingWordFallback || sourceIndex >= wordOffset;
+    const currentText = fallbackTexts[sourceIndex];
 
-  audio.volume = normalizeVolume(state.volume);
-  audio.src = buildRemoteTtsUrl(text).toString();
-  audio.load();
+    const startHighlight = () => {
+      if (!isFullSentence || token !== state.playbackToken) {
+        return;
+      }
 
-  const playResult = audio.play();
-  if (playResult && typeof playResult.catch === 'function') {
-    playResult.catch(() => {
+      if (isFallbackWord) {
+        paintWords(cardId, sourceIndex - wordOffset);
+        return;
+      }
+
+      if (!highlightStarted) {
+        highlightStarted = true;
+        const durationMs = Number.isFinite(audio.duration)
+          ? audio.duration * 1000
+          : estimateSpeechDuration(words, 0.84);
+        runTimedHighlight(cardId, words.length, durationMs);
+      }
+    };
+
+    const tryNextSource = () => {
       if (token !== state.playbackToken) {
+        return;
+      }
+
+      if (sourceIndex + 1 < fallbackTexts.length) {
+        usingWordFallback = true;
+        clearPlaybackTimers();
+        playSource(sourceIndex + 1);
         return;
       }
 
@@ -290,8 +297,35 @@ function speakWithRemoteAudio(text, cardId, words, isFullSentence, options = {})
       if (options.isWord) {
         scheduleBubbleHide();
       }
-    });
-  }
+    };
+
+    audio.onplaying = startHighlight;
+    audio.onloadedmetadata = startHighlight;
+    audio.onended = () => {
+      if (token !== state.playbackToken) {
+        return;
+      }
+
+      if (usingWordFallback && sourceIndex + 1 < fallbackTexts.length) {
+        playSource(sourceIndex + 1);
+        return;
+      }
+
+      finishRemotePlayback();
+    };
+    audio.onerror = tryNextSource;
+
+    audio.volume = normalizeVolume(state.volume);
+    audio.src = buildRemoteTtsUrl(currentText).toString();
+    audio.load();
+
+    const playResult = audio.play();
+    if (playResult && typeof playResult.catch === 'function') {
+      playResult.catch(tryNextSource);
+    }
+  };
+
+  playSource(0);
 }
 
 function ensureAudioPlayer() {

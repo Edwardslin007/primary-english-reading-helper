@@ -31,6 +31,20 @@ export function buildRemoteTtsUrl(text, voiceType = 2) {
   return url;
 }
 
+export function buildRemoteTtsFallbackTexts(text) {
+  const words = splitIntoSpeakableWords(text);
+  return [text, ...words.filter((word) => word !== text)];
+}
+
+export function buildRemoteTtsPlaybackTexts(text, options = {}) {
+  const words = splitIntoSpeakableWords(text);
+  if (options.forceWordSequence && words.length > 0) {
+    return words;
+  }
+
+  return buildRemoteTtsFallbackTexts(text);
+}
+
 export function estimateSpeechDuration(words, rate = 0.86) {
   const baseMs = 520;
   const perWordMs = 450 / Math.max(rate, 0.4);

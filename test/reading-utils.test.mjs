@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readingCards, wordDefinitions } from '../src/reading-data.mjs';
 import {
   buildRemoteTtsUrl,
+  buildRemoteTtsFallbackTexts,
+  buildRemoteTtsPlaybackTexts,
   findDefinition,
   normalizeForLookup,
   normalizeVolume,
@@ -64,4 +66,31 @@ test('buildRemoteTtsUrl creates an HTTPS American English audio fallback URL', (
   assert.equal(url.hostname, 'dict.youdao.com');
   assert.equal(url.searchParams.get('type'), '2');
   assert.equal(url.searchParams.get('audio'), 'Hello everyone!');
+});
+
+test('buildRemoteTtsFallbackTexts keeps full text first and then falls back to words', () => {
+  assert.deepEqual(
+    buildRemoteTtsFallbackTexts('I can sing English songs and draw nice pictures.'),
+    [
+      'I can sing English songs and draw nice pictures.',
+      'I',
+      'can',
+      'sing',
+      'English',
+      'songs',
+      'and',
+      'draw',
+      'nice',
+      'pictures',
+    ],
+  );
+});
+
+test('buildRemoteTtsPlaybackTexts can start directly with words for long mobile fallback', () => {
+  assert.deepEqual(
+    buildRemoteTtsPlaybackTexts('I can sing English songs and draw nice pictures.', {
+      forceWordSequence: true,
+    }),
+    ['I', 'can', 'sing', 'English', 'songs', 'and', 'draw', 'nice', 'pictures'],
+  );
 });
