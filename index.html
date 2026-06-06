@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小学生英文朗读辅助工具</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">Aa</span>
+          <div>
+            <p class="eyebrow">English Reading</p>
+            <h1>Sherry 朗读练习</h1>
+          </div>
+        </div>
+
+        <section class="toolbar" aria-label="朗读工具">
+          <label class="volume-control">
+            <span>音量</span>
+            <input id="volumeSlider" type="range" min="0" max="10" value="8" />
+            <output id="volumeValue" for="volumeSlider">8</output>
+          </label>
+
+          <label class="switch">
+            <input id="translationToggle" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">翻译显示</span>
+          </label>
+
+          <label class="switch">
+            <input id="lookupToggle" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">一键查读音</span>
+          </label>
+
+          <label class="switch">
+            <input id="phraseToggle" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">拆句连读</span>
+          </label>
+        </section>
+      </header>
+
+      <main>
+        <section class="hero-strip" aria-label="练习提示">
+          <div>
+            <p>跟着红色单词慢慢读</p>
+            <strong>大声、清楚、微笑</strong>
+          </div>
+          <div class="leaf-badge" aria-hidden="true"></div>
+        </section>
+
+        <section id="readingList" class="reading-list" aria-label="英文朗读句子"></section>
+      </main>
+    </div>
+
+    <div id="lookupBubble" class="lookup-bubble" role="status" aria-live="polite" hidden>
+      <span class="bubble-word"></span>
+      <span class="bubble-meaning"></span>
+    </div>
+
+    <script type="module" src="./src/app.mjs"></script>
+  </body>
+</html>
