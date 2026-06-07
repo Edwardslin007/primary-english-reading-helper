@@ -4,7 +4,7 @@
 
 当前冻结版本：V1.0
 
-当前线上补丁版本：V1.0.5
+当前线上版本：V1.1.0
 
 版本更新介绍见：
 
@@ -42,6 +42,19 @@ V1.0.5 文本内容更新说明见：
 docs/releases/v1.0.5.md
 ```
 
+V1.1.0 新增 Go Kart 课程说明见：
+
+```text
+docs/releases/v1.1.0.md
+```
+
+## 页面入口
+
+```text
+Sherry 自我介绍：http://127.0.0.1:4173/
+Ben & Misty Go Kart：http://127.0.0.1:4173/go-kart.html
+```
+
 ## 运行方式
 
 ```powershell
@@ -62,10 +75,16 @@ python -m http.server 4173 --bind 127.0.0.1
 
 ## 修改内容
 
-主要内容集中在：
+Sherry 课程内容集中在：
 
 ```text
 src/reading-data.mjs
+```
+
+Ben & Misty Go Kart 课程内容集中在：
+
+```text
+src/go-kart-data.mjs
 ```
 
 - `readingCards`：英文句子、中文翻译、拆句短语

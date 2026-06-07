@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { readingCards } from '../src/reading-data.mjs';
+import { goKartReadingCards } from '../src/go-kart-data.mjs';
 import {
   buildRemoteTtsUrl,
   getPhraseAudioPath,
@@ -12,29 +13,34 @@ import {
 
 const rootDir = process.cwd();
 const userAgent = 'Mozilla/5.0 Mobile Safari/604.1';
+const courses = [readingCards, goKartReadingCards];
 
 const jobs = [];
 
-for (const card of readingCards) {
-  jobs.push({
-    kind: 'sentence',
-    path: getSentenceAudioPath(card.id),
-    text: card.english,
-  });
-
-  card.phrases.forEach((phrase, index) => {
+for (const cards of courses) {
+  for (const card of cards) {
     jobs.push({
-      kind: 'phrase',
-      path: getPhraseAudioPath(card.id, index),
-      text: phrase,
+      kind: 'sentence',
+      path: getSentenceAudioPath(card.id),
+      text: card.english,
     });
-  });
+
+    card.phrases.forEach((phrase, index) => {
+      jobs.push({
+        kind: 'phrase',
+        path: getPhraseAudioPath(card.id, index),
+        text: phrase,
+      });
+    });
+  }
 }
 
 const words = new Map();
-for (const card of readingCards) {
-  for (const word of splitIntoSpeakableWords(card.english)) {
-    words.set(getWordAudioPath(word), word);
+for (const cards of courses) {
+  for (const card of cards) {
+    for (const word of splitIntoSpeakableWords(card.english)) {
+      words.set(getWordAudioPath(word), word);
+    }
   }
 }
 

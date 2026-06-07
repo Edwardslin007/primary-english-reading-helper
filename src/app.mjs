@@ -1,4 +1,5 @@
 import { readingCards, wordDefinitions } from './reading-data.mjs';
+import { goKartReadingCards, goKartWordDefinitions } from './go-kart-data.mjs';
 import {
   estimateSpeechDuration,
   findDefinition,
@@ -9,7 +10,26 @@ import {
   splitIntoSpeakableWords,
 } from './reading-utils.mjs';
 
-const ASSET_VERSION = '1.0.5';
+const ASSET_VERSION = '1.1.0';
+
+const courses = {
+  sherry: {
+    brandTitle: 'Sherry 朗读练习',
+    heroStrong: '大声、清楚、微笑',
+    heroTip: '跟着红色单词慢慢读',
+    readingCards,
+    wordDefinitions,
+  },
+  'go-kart': {
+    brandTitle: 'Ben & Misty 朗读练习',
+    heroStrong: '分段、连读、表演',
+    heroTip: '像讲故事一样读出来',
+    readingCards: goKartReadingCards,
+    wordDefinitions: goKartWordDefinitions,
+  },
+};
+
+const activeCourse = courses[document.body.dataset.course ?? 'sherry'] ?? courses.sherry;
 
 const state = {
   audioPlayer: null,
@@ -37,11 +57,12 @@ const elements = {
 renderCards();
 bindToolbar();
 hydrateVoices();
+hydrateCourseChrome();
 
 function renderCards() {
   const fragment = document.createDocumentFragment();
 
-  readingCards.forEach((card, index) => {
+  activeCourse.readingCards.forEach((card, index) => {
     const article = document.createElement('article');
     article.className = 'reading-card';
     article.dataset.cardId = card.id;
@@ -172,6 +193,12 @@ function hydrateVoices() {
   } else {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }
+}
+
+function hydrateCourseChrome() {
+  document.querySelector('[data-course-title]').textContent = activeCourse.brandTitle;
+  document.querySelector('[data-hero-tip]').textContent = activeCourse.heroTip;
+  document.querySelector('[data-hero-strong]').textContent = activeCourse.heroStrong;
 }
 
 function speakText(text, cardId, options = {}) {
@@ -425,7 +452,7 @@ function handleWordLookup(word, cardId) {
     return;
   }
 
-  const meaning = findDefinition(word, wordDefinitions) || '这个单词稍后补充释义';
+  const meaning = findDefinition(word, activeCourse.wordDefinitions) || '这个单词稍后补充释义';
   showLookupBubble(word, meaning);
   speakText(word, cardId, {
     audioPath: getWordAudioPath(word),
