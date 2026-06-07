@@ -9,7 +9,7 @@ import {
   splitIntoSpeakableWords,
 } from './reading-utils.mjs';
 
-const ASSET_VERSION = '1.0.4';
+const ASSET_VERSION = '1.0.5';
 
 const state = {
   audioPlayer: null,

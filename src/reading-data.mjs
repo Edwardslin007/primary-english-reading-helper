@@ -55,9 +55,9 @@ export const readingCards = [
   },
   {
     id: 'favourites',
-    english: 'My favourite fruit is strawberries and my favourite colour is purple.',
-    chinese: '我最喜欢的水果是草莓，最喜欢的颜色是紫色。',
-    phrases: ['My favourite fruit', 'is strawberries', 'and my favourite colour', 'is purple.'],
+    english: 'My favourite fruit is apple and my favourite colour is purple.',
+    chinese: '我最喜欢的水果是苹果，最喜欢的颜色是紫色。',
+    phrases: ['My favourite fruit', 'is apple', 'and my favourite colour', 'is purple.'],
   },
   {
     id: 'competition',
@@ -72,6 +72,7 @@ export const wordDefinitions = {
   always: '总是',
   am: '是',
   and: '和；并且',
+  apple: '苹果',
   at: '在',
   can: '能够；会',
   cat: '猫',
@@ -116,7 +117,6 @@ export const wordDefinitions = {
   songs: '歌曲',
   standing: '站立',
   stories: '故事',
-  strawberries: '草莓',
   talking: '说话；交谈',
   thank: '谢谢',
   the: '这个；那个',

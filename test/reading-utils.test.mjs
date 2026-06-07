@@ -59,6 +59,17 @@ test('word definitions cover every spoken word in the configured reading cards',
   assert.deepEqual([...missing], []);
 });
 
+test('favourite fruit content uses apple instead of strawberries', () => {
+  const allReadingText = readingCards
+    .flatMap((card) => [card.english, card.chinese, ...card.phrases])
+    .join('\n')
+    .toLocaleLowerCase('en-US');
+
+  assert.match(allReadingText, /apple/);
+  assert.doesNotMatch(allReadingText, /strawberries/);
+  assert.doesNotMatch(allReadingText, /草莓/);
+});
+
 test('normalizeVolume converts a 0-10 slider value to Web Speech volume', () => {
   assert.equal(normalizeVolume(0), 0);
   assert.equal(normalizeVolume(5), 0.5);
